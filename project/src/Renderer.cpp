@@ -36,7 +36,7 @@ namespace dae {
 			std::cout << "DirectX initialization failed!\n";
 		}		
 
-		// Mesh
+		// Mesh	
 		Utils::ParseOBJ("resources/vehicle.obj", m_Vertices, m_Indices);
 		m_pMesh = new Mesh(m_pDevice, m_Indices, m_Vertices);
 
@@ -432,7 +432,10 @@ namespace dae {
 			SDL_FillRect(m_pBackBuffer, nullptr, clearColor);
 		}
 
+		// Set world space coordinates to NDC
 		VertexTransformationFunction(m_pMesh);
+
+		// Render Mesh
 		RenderSoftwareMesh(m_pMesh);
 		
 		//@END
@@ -663,7 +666,6 @@ namespace dae {
 
 		// 2. SET pipeline + invoke draw call (= render)
 		m_pMesh->Render(m_pDeviceContext);
-
 
 		// 3. Present backbuffer (swap)
 		m_pSwapChain->Present(0, 0);

@@ -10,6 +10,11 @@ public:
     Effect(ID3D11Device* pDevice, const std::wstring& assetFile);
     ~Effect();
     
+    Effect(const Effect&) = delete;
+    Effect(Effect&&) noexcept = delete;
+    Effect& operator=(const Effect&) = delete;
+    Effect& operator=(Effect&&) noexcept = delete;
+
     // Getters
     ID3DX11EffectTechnique* GetTechnique() const;
     //ID3D11InputLayout* GetInputLayout() const;

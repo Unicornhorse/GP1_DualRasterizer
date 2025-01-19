@@ -41,6 +41,11 @@ public:
     Mesh(ID3D11Device* pDevice, std::vector<uint32_t> indices, std::vector<Vertex_PosCol> vertices);
 	~Mesh();
 
+	Mesh(const Mesh&) = delete;
+	Mesh(Mesh&&) noexcept = delete;
+	Mesh& operator=(const Mesh&) = delete;
+	Mesh& operator=(Mesh&&) noexcept = delete;
+
 	void Render(ID3D11DeviceContext* pDeviceContext) const;
 	void SetMatrix(const Matrix& wvpMatrix) const;
     void SetDiffuseMap(Texture* texture) const;

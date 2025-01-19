@@ -144,12 +144,11 @@ namespace dae
 			
 			//Create the Tangents (reject)
 			for (auto& v : vertices)
-			{	// TODO: uncomment at some point
+			{
 				v.tangent = Vector3::Reject(v.tangent, v.normal).Normalized();
 			
 				if(flipAxisAndWinding)
 				{
-					// TODO: uncomment at some point
 					v.position.z *= -1.f;
 					v.normal.z *= -1.f;
 					v.tangent.z *= -1.f;

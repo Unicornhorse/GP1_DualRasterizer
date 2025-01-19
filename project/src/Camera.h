@@ -100,8 +100,6 @@ namespace dae {
 			int mouseX{}, mouseY{};
 			const uint32_t mouseState = SDL_GetRelativeMouseState(&mouseX, &mouseY);
 
-			//todo: W2
-			//throw std::runtime_error("Not Implemented Yet");
 			if (pKeyboardState[SDL_SCANCODE_LSHIFT]) {
 				movement += speed;
 			}

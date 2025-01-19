@@ -11,6 +11,11 @@ namespace dae {
     public:
         ~Texture();
 
+        Texture(const Texture&) = delete;
+        Texture(Texture&&) noexcept = delete;
+        Texture& operator=(const Texture&) = delete;
+        Texture& operator=(Texture&&) noexcept = delete;
+
         static Texture* LoadFromFile(const std::string& path, ID3D11Device* pDevice);
         ColorRGB Sample(const Vector2& uv) const;
 

@@ -71,36 +71,8 @@ namespace dae
 		Mesh* m_pMesh{};
 		Camera m_Camera{};
 
-		std::vector<Vertex_PosCol> m_Vertices{
-			//{{.0f, 3.f, 2.f}, {1.f, 0.f, 0.f}},
-			//{{3.f, -3.f, 2.f}, {0.f, 0.f, 1.f}},
-			//{{-3.f, -3.f, 2.f}, {0.f, 1.f, 0.f}}
-
-			//{ { -3.f,	 3.f,	-2.f }, {colors::White}, {	0,	0	} },
-			//{ { 0.f,	 3.f,	-2.f }, {colors::White}, { .5,	0	} },
-			//{ { 3.f,	 3.f,	-2.f }, {colors::White}, {	1,	0	} },
-			//{ { -3.f,	 0.f,	-2.f }, {colors::White}, {	0, .5	} },
-			//{ { 0.f,	 0.f,	-2.f }, {colors::White}, { .5, .5	} },
-			//{ { 3.f,	 0.f,	-2.f }, {colors::White}, {	1, .5	} },
-			//{ { -3.f,	-3.f,	-2.f }, {colors::White}, {	0,	1	} },
-			//{ { 0.f,	-3.f,	-2.f }, {colors::White}, { .5,	1	} },
-			//{ { 3.f,	-3.f,	-2.f }, {colors::White}, {	1,	1	} }
-
-			//{ { -3.f,  3.f, -2.f }, { colors::White }, { 0.f, 0.f } },
-			//{ {  3.f,  3.f, -2.f }, { colors::White }, { 1.f, 0.f } },
-			//{ { -3.f, -3.f, -2.f }, { colors::White }, { 0.f, 1.f } },
-			//{ {  3.f, -3.f, -2.f }, { colors::White }, { 1.f, 1.f } },
-		};
-		std::vector<uint32_t> m_Indices{ 
-			//0, 1, 2 
-		
-			//3, 0, 1,	1, 4, 3,	4, 1, 2,
-			//2, 5, 4,	6, 3, 4,	4, 7, 6,
-			//7, 4, 5,	5, 8, 7
-
-			//0, 1, 2,
-			//2, 1, 3
-		};
+		std::vector<Vertex_PosCol> m_Vertices{};
+		std::vector<uint32_t> m_Indices{};
 
 		float m_Rotationspeed{ 0.9f };
 		float m_Rotation{};

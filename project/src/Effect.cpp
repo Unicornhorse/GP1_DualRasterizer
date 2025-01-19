@@ -135,15 +135,17 @@ void Effect::ToggleTechnique()
 	std::string techniqueName;
 	m_TechniqueIdx = (m_TechniqueIdx + 1) % 3;
 	if (m_TechniqueIdx == 0) {
-		techniqueName = "PointTechnique";
+		techniqueName = "POINT";
 	}
 	else if (m_TechniqueIdx == 1) {
-		techniqueName = "LinearTechnique";
+		techniqueName = "LINEAR";
 	}
 	else {
-		techniqueName = "AnisotropicTechnique";
+		techniqueName = "ANISOTROPIC";
 	}
-	std::cout << "Technique: " << techniqueName << std::endl;
+	std::cout << "\033[32m";
+	std::cout << "**(HARDWARE) Sampler Filter = " << techniqueName << std::endl;
+	std::cout << "\033[0m";
 	m_pTechnique = m_pEffect->GetTechniqueByIndex(m_TechniqueIdx);
 	if (!m_pTechnique) {
 		std::wcout << L"Technique not valid\n";

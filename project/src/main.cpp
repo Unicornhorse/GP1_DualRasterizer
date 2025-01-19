@@ -9,6 +9,8 @@
 
 using namespace dae;
 
+void TogglePrintFPS(bool& printFPS);
+
 void ShutDown(SDL_Window* pWindow)
 {
 	SDL_DestroyWindow(pWindow);
@@ -44,6 +46,8 @@ int main(int argc, char* args[])
 	pTimer->Start();
 	float printTimer = 0.f;
 	bool isLooping = true;
+
+	bool PrintFPS = false;
 	while (isLooping)
 	{
 		//--------- Get input events ---------
@@ -56,13 +60,56 @@ int main(int argc, char* args[])
 				isLooping = false;
 				break;
 			case SDL_KEYUP:
-				//Test for a key
-				if (e.key.keysym.scancode == SDL_SCANCODE_F2) {
-					//if f2 key is pressed change from point to linear to anisotropic
+				switch (e.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_F1:
+					// Toggle Rasterizer Mode				(SHARED)
+					pRenderer->ToggleRasterizerMode();
+					break;
+				case SDL_SCANCODE_F2:
+					// Toggle Vehicle Rotation				(SHARED)
+					pRenderer->ToggleVehicleRotation();
+					break;
+				case SDL_SCANCODE_F3:
+					// Toggle FireFX						(HARDWARE)		
+					pRenderer->ToggleFireFX();
+					break;
+				case SDL_SCANCODE_F4:
+					// Cycle Sampler State					(HARDWARE)	
 					pRenderer->ToggleTechnique();
+					break;
+				case SDL_SCANCODE_F5:
+					// Cycle Shading Mode 					(SOFTWARE)
+					pRenderer->CycleShadingMode();
+					break;
+				case SDL_SCANCODE_F6:
+					// Toggle NormalMap						(SOFTWARE)
+					pRenderer->ToggleNormalMap();
+					break;
+				case SDL_SCANCODE_F7:
+					// Toggle DepthBuffer Visualization		(SOFTWARE)
+					pRenderer->ToggleDepthBufferVisualisation();
+					break;
+				case SDL_SCANCODE_F8:
+					// Toggle BoundingBox Visualization		(SOFTWARE)
+					pRenderer->ToggleBoundingBoxVisualisation();
+					break;
+				case SDL_SCANCODE_F9:
+					// Cycle Cull modes						(SHARED)
+					pRenderer->CycleCullMode();
+					break;
+				case SDL_SCANCODE_F10:
+					// Toggle Uniform ClearColor			(SHARED)
+					pRenderer->ToggleUniformClearColor();
+					break;
+				case SDL_SCANCODE_F11:
+					// Toggle Print FPS						(SHARED)
+					TogglePrintFPS(PrintFPS);
+					break;
+				default:
+					break;
 				}
-				break;
-			default: ;
+			default:;
 			}
 		}
 
@@ -75,10 +122,11 @@ int main(int argc, char* args[])
 		//--------- Timer ---------
 		pTimer->Update();
 		printTimer += pTimer->GetElapsed();
-		if (printTimer >= 1.f)
+		if (printTimer >= 1.f && PrintFPS)
 		{
 			printTimer = 0.f;
-			std::cout << "dFPS: " << pTimer->GetdFPS() << std::endl;
+			std::cout << "\033[90m" << "dFPS: " << pTimer->GetdFPS() << std::endl;
+			std::cout << "\033[0m";
 		}
 	}
 	pTimer->Stop();
@@ -89,4 +137,21 @@ int main(int argc, char* args[])
 
 	ShutDown(pWindow);
 	return 0;
+}
+
+void TogglePrintFPS(bool& printFPS)
+{
+	printFPS = !printFPS;
+
+	std::cout << "\033[33m" << "**(SHARED) Print FPS: ";
+
+	if (printFPS)
+	{
+		std::cout << "ON \n";
+	}
+	else
+	{
+		std::cout << "OFF \n";
+	}
+	std::cout << "\033[0m";
 }

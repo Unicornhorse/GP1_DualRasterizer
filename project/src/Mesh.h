@@ -16,6 +16,23 @@ struct Vertex_PosCol
 	Vector2 uv{};
 	Vector3 normal{};
 	Vector3 tangent{};
+	Vector3 viewDirection{};
+};
+
+struct Vertex_Out
+{
+	Vector4 position{};
+	ColorRGB color{ colors::White };
+	Vector2 uv{};
+	Vector3 normal{};
+	Vector3 tangent{};
+	Vector3 viewDirection{};
+};
+
+enum class PrimitiveTopology
+{
+	TriangleList,
+	TriangleStrip
 };
 
 class Mesh
@@ -29,6 +46,9 @@ public:
     void SetDiffuseMap(Texture* texture) const;
 
     void ToggleTechnique();
+
+	std::vector<Vertex_Out>& GetVerticesOut() { return m_Vertices_out; }
+	PrimitiveTopology GetTopology() { return m_PrimitiveTopology; }
 
 private:
 	void CreateLayoutAndBuffers(ID3D11Device* pDevice, const std::vector<Vertex_PosCol>& vertices, const std::vector<uint32_t>& indices);
@@ -47,4 +67,7 @@ private:
 
     // Buffer sizes
     uint32_t m_NumIndices{ 0 };
+
+	std::vector<Vertex_Out> m_Vertices_out{};
+	PrimitiveTopology m_PrimitiveTopology{ PrimitiveTopology::TriangleStrip };
 };

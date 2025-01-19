@@ -10,13 +10,19 @@ namespace dae {
 		//Initialize
 		SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
+		//Create Buffers
+		m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
+		m_pBackBuffer = SDL_CreateRGBSurface(0, m_Width, m_Height, 32, 0, 0, 0, 0);
+		m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
+
+		m_pDepthBufferPixels = new float[m_Width * m_Height];
+
 		// Get aspect ratio
 		m_AspectRatio = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 
 		// Camera 
 		m_Camera.Initialize(45.f, { .0f,.0f, -50.f });
 		m_Camera.CalculateProjectionMatrix(m_AspectRatio);
-		
 
 		//Initialize DirectX pipeline
 		const HRESULT result = InitializeDirectX();
@@ -31,13 +37,15 @@ namespace dae {
 		}		
 
 		// Mesh
-		Utils::ParseOBJ("resources/vehicle.obj", vertices, indices);
-		m_pMesh = new Mesh(m_pDevice, indices, vertices);
+		Utils::ParseOBJ("resources/vehicle.obj", m_Vertices, m_Indices);
+		m_pMesh = new Mesh(m_pDevice, m_Indices, m_Vertices);
 
 		// Textures
 		//m_pTexture = Texture::LoadFromFile("resources/uv_grid_2.png", m_pDevice);
 		m_pTexture = Texture::LoadFromFile("resources/vehicle_diffuse.png", m_pDevice);
 		m_pMesh->SetDiffuseMap(m_pTexture);
+
+		PrintControls();
 	}
 
 	Renderer::~Renderer()
@@ -80,6 +88,11 @@ namespace dae {
 			m_pRenderTargetView = nullptr;
 		}
 
+		if (m_pDepthBufferPixels) {
+			delete[] m_pDepthBufferPixels;
+			m_pDepthBufferPixels = nullptr;
+		}
+
 		if (m_pMesh) {
 			delete m_pMesh;
 			m_pMesh = nullptr;
@@ -96,7 +109,15 @@ namespace dae {
 	{
 		m_Camera.Update(pTimer);
 
-		m_Rotation += m_Rotationspeed * pTimer->GetElapsed();
+		if (m_RotationEnabled)
+		{
+			m_Rotation = m_Rotationspeed * pTimer->GetElapsed();
+			m_World *= Matrix::CreateRotationY(m_Rotation);
+		}
+
+		wvpMatrix = m_World * m_Camera.GetViewMatrix() * m_Camera.GetProjectionMatrix();
+
+		m_pMesh->SetMatrix(wvpMatrix);
 	}
 
 
@@ -105,29 +126,15 @@ namespace dae {
 		if (!m_IsInitialized)
 			return;
 
-		// 1. Clear RTV & DSV
-		constexpr float color[4] = { 0.0f, 0.0f, 0.3f, 1.0f };
-		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, color);
-		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
-
-		// 2. SET pipeline + invoke draw call (= render)
-		Matrix m_World{};
-		m_World *= Matrix::CreateRotation(Vector3{ 0.f, m_Rotation, 0.f });
-		m_World *= Matrix::CreateScale(1.f, 1.f, 1.f);
-		m_World *= Matrix::CreateTranslation(Vector3{ 0.f, 0.f, 0.f });
-
-
-		Matrix wvpMatrix = m_World * m_Camera.GetViewMatrix() * m_Camera.GetProjectionMatrix();
-
-		m_pMesh->SetMatrix(wvpMatrix);
-		m_pMesh->Render(m_pDeviceContext);
-
-
-		// 3. Present backbuffer (swap)
-		m_pSwapChain->Present(0, 0);
-
+		if (m_Hardware)
+		{
+			RenderHardware();
+		}
+		else
+		{
+			RenderSoftware();
+		}
 	}
-
 
 	HRESULT Renderer::InitializeDirectX()
 	{
@@ -264,8 +271,244 @@ namespace dae {
 	// -------------------
 	// Key input functions
 	// -------------------
+	void Renderer::ToggleRasterizerMode()
+	{
+		m_Hardware = !m_Hardware;
+
+		if (m_Hardware)
+		{
+			std::cout << "\033[33m" << "**(SHARED) Hardware Rasterizer";
+		}
+		else
+		{
+			std::cout << "\033[33m" << "**(SHARED) Software Rasterizer";
+		}
+		std::cout << std::endl;
+		std::cout << "\033[0m";
+	}
+
+	void Renderer::ToggleVehicleRotation()
+	{
+		m_RotationEnabled = !m_RotationEnabled;
+
+		std::cout << "\033[33m" << "**(SHARED) Vehicle Rotation: ";
+
+		if (m_RotationEnabled)
+		{
+			std::cout << "ON\n";
+		}
+		else
+		{
+			std::cout << "OFF\n";
+		}
+		std::cout << "\033[0m";
+	}
+
+	void Renderer::CycleCullMode()
+	{
+	}
+
+	void Renderer::ToggleUniformClearColor()
+	{
+		m_UniformClearColor = !m_UniformClearColor;
+		std::cout << "\033[33m" << "**(SHARED) Uniform ClearColor: ";
+		if (m_UniformClearColor)
+		{
+			std::cout << "ON\n";
+		}
+		else
+		{
+			std::cout << "OFF\n";
+		}
+		std::cout << "\033[0m";
+	}
+	
+	void Renderer::ToggleFireFX()
+	{
+		if (m_Hardware) {
+
+			m_FireFX = !m_FireFX;
+
+			std::cout << "\033[32m" << "**(HARDWARE) FireFX: ";
+
+			if (m_FireFX)
+			{
+				std::cout << "ON\n";
+			}
+			else
+			{
+				std::cout << "OFF\n";
+			}
+			std::cout << "\033[0m";
+		}
+	}
+
 	void Renderer::ToggleTechnique()
 	{
 		m_pMesh->ToggleTechnique();
+	}
+
+	void Renderer::CycleShadingMode()
+	{
+	}
+
+	void Renderer::ToggleNormalMap()
+	{
+	}
+
+	void Renderer::ToggleDepthBufferVisualisation()
+	{
+	}
+
+	void Renderer::ToggleBoundingBoxVisualisation()
+	{
+	}
+
+	void Renderer::RenderSoftware() const
+	{
+		//@START
+		//Lock BackBuffer
+		SDL_LockSurface(m_pBackBuffer);
+
+		//Clear BackBuffer
+		if (m_UniformClearColor) {
+			Uint32 clearColor = SDL_MapRGB(m_pBackBuffer->format, 30, 30, 30);
+			SDL_FillRect(m_pBackBuffer, nullptr, clearColor);
+		}
+		else {
+			Uint32 clearColor = SDL_MapRGB(m_pBackBuffer->format, 100, 100, 100);
+			SDL_FillRect(m_pBackBuffer, nullptr, clearColor);
+		}
+
+		std::fill_n(m_pDepthBufferPixels, m_Width * m_Height, FLT_MAX);
+
+		VertexTransformationFunction(m_pMesh);
+		
+		//std::vector<Vector2> vertices_ScreenSpace{};
+		//
+		//auto& vertices_out{ mesh->GetVerticesOut() };
+		//
+		//for (const auto& vertex : vertices_out)
+		//{
+		//	vertices_ScreenSpace.push_back(
+		//		{
+		//			(vertex.position.x + 1) / 2.0f * m_Width,
+		//			(1.0f - vertex.position.y) / 2.0f * m_Height
+		//		});
+		//}
+		//
+		//Triangle triangle{};
+		//
+		//auto& indices{ mesh->GetIndices() };
+		//switch (mesh->GetTopology())
+		//{
+		//case PrimitiveTopology::TriangeList:
+		//	for (int i{}; i < indices.size(); i += 3)
+		//	{
+		//		if (CalculateTriangle(triangle, mesh, vertices_ScreenSpace, i))
+		//		{
+		//			RenderTriangle(triangle);
+		//		}
+		//	}
+		//	break;
+		//case PrimitiveTopology::TriangleStrip:
+		//	for (int i{}; i < indices.size() - 2; i++)
+		//	{
+		//		if (CalculateTriangle(triangle, mesh, vertices_ScreenSpace, i, (i % 2) == 1))
+		//		{
+		//			RenderTriangle(triangle);
+		//		}
+		//	}
+		//	break;
+		//default:
+		//	break;
+		//}
+		//
+		//@END
+		//Update SDL Surface
+		SDL_UnlockSurface(m_pBackBuffer);
+		SDL_BlitSurface(m_pBackBuffer, 0, m_pFrontBuffer, 0);
+		SDL_UpdateWindowSurface(m_pWindow);
+	}
+
+	void Renderer::VertexTransformationFunction(Mesh* mesh) const
+	{
+		auto& vertices{ m_Vertices };
+		auto& vertices_out{ mesh->GetVerticesOut() };
+
+		vertices_out.clear();
+		vertices_out.reserve(vertices.size());
+
+		Matrix worldprojectionMatrix{ m_World * m_Camera.GetViewMatrix() * m_Camera.GetProjectionMatrix()};
+
+		for (auto& vertex : vertices)
+		{
+			// Tranform the vertex using the inversed view matrix
+			Vertex_Out outVertex{ 
+				worldprojectionMatrix.TransformPoint({vertex.position, 1.f}),
+				vertex.color,
+				vertex.uv,
+				m_World.TransformVector(vertex.normal).Normalized(),
+				m_World.TransformVector(vertex.tangent).Normalized(),
+				worldprojectionMatrix.TransformVector(vertex.viewDirection).Normalized()
+			};
+
+			outVertex.viewDirection = Vector3{ outVertex.position.x, outVertex.position.y, outVertex.position.z };
+			outVertex.viewDirection.Normalize();
+
+			outVertex.position.x /= outVertex.position.w;
+			outVertex.position.y /= outVertex.position.w;
+			outVertex.position.z /= outVertex.position.w;
+
+			// Add the new vertex to the list of NDC vertices
+			vertices_out.emplace_back(outVertex);
+		}
+	}
+
+	void Renderer::RenderHardware() const
+	{
+		// 1. Clear RTV & DSV
+		ColorRGB color;
+		if (m_UniformClearColor) {
+			color = ColorRGB{ .39f, .59f, .93f };
+		}
+		else {
+			color = ColorRGB{ 0.14f, 0.14f, 0.14f };
+		}
+		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, &color.r);
+		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+
+		// 2. SET pipeline + invoke draw call (= render)
+		m_pMesh->Render(m_pDeviceContext);
+
+
+		// 3. Present backbuffer (swap)
+		m_pSwapChain->Present(0, 0);
+	}
+
+	void Renderer::PrintControls() const
+	{
+		std::cout << "\033[33m"; // Set color to Yellow
+		std::cout << "[Key Bindings - SHARED] \n";
+		std::cout << "   [F1]  Toggle Rasterizer Mode (HARDWARE/SOFTWARE)\n"; // TODO
+		std::cout << "   [F2]  Toggle Vehicle Rotation (ON/OFF)\n";
+		std::cout << "   [F9]  Cycle CullMode (BACK/FRONT/NONE)\n"; // TODO
+		std::cout << "   [F10]  Toggle Uniform ClearColor (ON/OFF)\n";
+		std::cout << "   [F11]  Toggle Print FPS (ON/OFF)\n";
+		std::cout << "\033[0m" << std::endl;
+
+		std::cout << "\033[32m"; // Set color to Green
+		std::cout << "[Key Bindings - HARDWARE] \n";
+		std::cout << "   [F3]  Toggle FireFX (ON/OFF)\n"; // TODO
+		std::cout << "   [F4]  Cycle Sampler State (ON/OFF)\n";
+		std::cout << "\033[0m" << std::endl;
+
+		std::cout << "\033[35m"; // Set color to Purple
+		std::cout << "[Key Bindings - SHARED] \n";
+		std::cout << "   [F5]  Cycle Shading Mode (COMBINED/OBSERVED_AREA/DIFFUSE/SPECULAR)\n"; // TODO
+		std::cout << "   [F6]  Toggle NormalMap (ON/OFF)\n"; // TODO
+		std::cout << "   [F7]  Toggle DepthBuffer Visualization (ON/OFF)\n"; // TODO
+		std::cout << "   [F8]  Toggle BoundingBox Visualization (ON/OFF)\n"; // TODO
+		std::cout << "\033[0m" << std::endl;
 	}
 }

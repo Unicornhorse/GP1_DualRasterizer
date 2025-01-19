@@ -46,8 +46,11 @@ public:
     void SetDiffuseMap(Texture* texture) const;
 
     void ToggleTechnique();
-
+	
+	std::vector<uint32_t>& GetIndices() { return m_Indices; }
 	std::vector<Vertex_Out>& GetVerticesOut() { return m_Vertices_out; }
+	std::vector<Vertex_PosCol>& GetVertices() { return m_Vertices; }
+
 	PrimitiveTopology GetTopology() { return m_PrimitiveTopology; }
 
 private:
@@ -68,6 +71,9 @@ private:
     // Buffer sizes
     uint32_t m_NumIndices{ 0 };
 
+	std::vector<uint32_t> m_Indices{};
+	std::vector<Vertex_PosCol> m_Vertices{};
 	std::vector<Vertex_Out> m_Vertices_out{};
-	PrimitiveTopology m_PrimitiveTopology{ PrimitiveTopology::TriangleStrip };
+
+	PrimitiveTopology m_PrimitiveTopology{ PrimitiveTopology::TriangleList };
 };

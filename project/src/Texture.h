@@ -1,11 +1,10 @@
 #pragma once
+#include "Math.h"
 #include <SDL_surface.h>
 #include <d3d11.h>
 #include <string>
-//#include "ColorRGB.h"
 
 namespace dae {
-	struct Vector2;
 
 	class Texture
 	{
@@ -13,6 +12,7 @@ namespace dae {
         ~Texture();
 
         static Texture* LoadFromFile(const std::string& path, ID3D11Device* pDevice);
+        ColorRGB Sample(const Vector2& uv) const;
 
         ID3D11ShaderResourceView* GetShaderResourceView() const { return m_pSRV; }
 

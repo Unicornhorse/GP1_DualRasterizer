@@ -64,8 +64,8 @@ namespace dae {
 
 		void CalculateProjectionMatrix(float aspectRatio)
 		{
-			const float nearPlane = 1.f;
-			const float farPlane = 1000.f;
+			const float nearPlane = .1f;
+			const float farPlane = 100.f;
 
 			const float A = farPlane / (farPlane - nearPlane);
 			const float B = (-farPlane * nearPlane) / (farPlane - nearPlane);

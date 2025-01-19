@@ -358,10 +358,62 @@ namespace dae {
 
 	void Renderer::ToggleDepthBufferVisualisation()
 	{
+		if (!m_Hardware) {
+			m_DisplayDepthBuffer = !m_DisplayDepthBuffer;
+
+			std::cout << "\033[35m" << "**(SOFTWARE) Depth Buffer Visualisation: ";
+
+			if (m_DisplayDepthBuffer)
+			{
+				std::cout << "ON\n";
+			}
+			else
+			{
+				std::cout << "OFF\n";
+			}
+			std::cout << "\033[0m";
+		}
 	}
 
 	void Renderer::ToggleBoundingBoxVisualisation()
 	{
+		if (!m_Hardware) {
+			m_DisplayBoundingBox = !m_DisplayBoundingBox;
+			std::cout << "\033[35m" << "**(SOFTWARE) Bounding Box Visualisation: ";
+			if (m_DisplayBoundingBox)
+			{
+				std::cout << "ON\n";
+			}
+			else
+			{
+				std::cout << "OFF\n";
+			}
+			std::cout << "\033[0m";
+		}
+	}
+
+	void Renderer::DrawBoundingBox(int minX, int minY, int maxX, int maxY, uint32_t* framebuffer, int width, int height, uint32_t color) const
+	{
+		// Top
+		for (int x = minX; x < maxX; ++x)
+		{
+			framebuffer[x + minY * width] = color;
+		}
+		// Bottom
+		for (int x = minX; x < maxX; ++x)
+		{
+			framebuffer[x + maxY * width] = color;
+		}
+		// Left
+		for (int y = minY; y < maxY; ++y)
+		{
+			framebuffer[minX + y * width] = color;
+		}
+		// Right
+		for (int y = minY; y < maxY; ++y)
+		{
+			framebuffer[maxX + y * width] = color;
+		}
 	}
 
 	void Renderer::RenderSoftware() const
@@ -372,7 +424,7 @@ namespace dae {
 
 		//Clear BackBuffer
 		if (m_UniformClearColor) {
-			Uint32 clearColor = SDL_MapRGB(m_pBackBuffer->format, 30, 30, 30);
+			Uint32 clearColor = SDL_MapRGB(m_pBackBuffer->format, 39, 39, 39);
 			SDL_FillRect(m_pBackBuffer, nullptr, clearColor);
 		}
 		else {
@@ -380,50 +432,9 @@ namespace dae {
 			SDL_FillRect(m_pBackBuffer, nullptr, clearColor);
 		}
 
-		std::fill_n(m_pDepthBufferPixels, m_Width * m_Height, FLT_MAX);
-
 		VertexTransformationFunction(m_pMesh);
+		RenderSoftwareMesh(m_pMesh);
 		
-		//std::vector<Vector2> vertices_ScreenSpace{};
-		//
-		//auto& vertices_out{ mesh->GetVerticesOut() };
-		//
-		//for (const auto& vertex : vertices_out)
-		//{
-		//	vertices_ScreenSpace.push_back(
-		//		{
-		//			(vertex.position.x + 1) / 2.0f * m_Width,
-		//			(1.0f - vertex.position.y) / 2.0f * m_Height
-		//		});
-		//}
-		//
-		//Triangle triangle{};
-		//
-		//auto& indices{ mesh->GetIndices() };
-		//switch (mesh->GetTopology())
-		//{
-		//case PrimitiveTopology::TriangeList:
-		//	for (int i{}; i < indices.size(); i += 3)
-		//	{
-		//		if (CalculateTriangle(triangle, mesh, vertices_ScreenSpace, i))
-		//		{
-		//			RenderTriangle(triangle);
-		//		}
-		//	}
-		//	break;
-		//case PrimitiveTopology::TriangleStrip:
-		//	for (int i{}; i < indices.size() - 2; i++)
-		//	{
-		//		if (CalculateTriangle(triangle, mesh, vertices_ScreenSpace, i, (i % 2) == 1))
-		//		{
-		//			RenderTriangle(triangle);
-		//		}
-		//	}
-		//	break;
-		//default:
-		//	break;
-		//}
-		//
 		//@END
 		//Update SDL Surface
 		SDL_UnlockSurface(m_pBackBuffer);
@@ -433,36 +444,208 @@ namespace dae {
 
 	void Renderer::VertexTransformationFunction(Mesh* mesh) const
 	{
-		auto& vertices{ m_Vertices };
-		auto& vertices_out{ mesh->GetVerticesOut() };
+		std::vector<Vertex_PosCol>& vertices{ mesh->GetVertices() };
+		std::vector<Vertex_Out>&	vertices_out{ mesh->GetVerticesOut() };
 
 		vertices_out.clear();
 		vertices_out.reserve(vertices.size());
 
-		Matrix worldprojectionMatrix{ m_World * m_Camera.GetViewMatrix() * m_Camera.GetProjectionMatrix()};
-
 		for (auto& vertex : vertices)
 		{
-			// Tranform the vertex using the inversed view matrix
 			Vertex_Out outVertex{ 
-				worldprojectionMatrix.TransformPoint({vertex.position, 1.f}),
+				wvpMatrix.TransformPoint({vertex.position, 1.f}),
 				vertex.color,
 				vertex.uv,
-				m_World.TransformVector(vertex.normal).Normalized(),
-				m_World.TransformVector(vertex.tangent).Normalized(),
-				worldprojectionMatrix.TransformVector(vertex.viewDirection).Normalized()
+				m_World.TransformVector(vertex.normal),
+				m_World.TransformVector(vertex.tangent),
+				m_World.TransformVector(vertex.viewDirection)
 			};
 
-			outVertex.viewDirection = Vector3{ outVertex.position.x, outVertex.position.y, outVertex.position.z };
-			outVertex.viewDirection.Normalize();
+			// World Space
+			Vector4 worldSpace{
+				vertex.position.x,
+				vertex.position.y,
+				vertex.position.z,
+				1.f
+			};
 
-			outVertex.position.x /= outVertex.position.w;
-			outVertex.position.y /= outVertex.position.w;
-			outVertex.position.z /= outVertex.position.w;
+			// View Space
+			Vector4 viewSpace{ m_Camera.GetViewMatrix().TransformPoint(m_World.TransformPoint(worldSpace))};
 
-			// Add the new vertex to the list of NDC vertices
+			// Projection Space
+			Vector4 projected{ m_Camera.GetProjectionMatrix().TransformPoint(viewSpace)};
+
+			// Perspective Division
+			outVertex.position.x /= projected.w;
+			outVertex.position.y /= projected.w;
+			outVertex.position.z /= projected.w;
+
+			// NDC Space
 			vertices_out.emplace_back(outVertex);
 		}
+	}
+
+	void Renderer::RenderSoftwareMesh(Mesh* mesh) const
+	{
+		std::vector<uint32_t>&		indices{ mesh->GetIndices() };
+		std::vector<Vertex_Out>&	vertices_NDC{ mesh->GetVerticesOut() };
+
+		PrimitiveTopology topology{ mesh->GetTopology() };
+
+		for (size_t i = 0; i < m_Width * m_Height; ++i) {
+			m_pDepthBufferPixels[i] = std::numeric_limits<float>::max();
+		}
+
+		// Rasterization
+		uint16_t size = indices.size() - (topology == PrimitiveTopology::TriangleList ? 0 : 2);
+
+		for (size_t i = 0; i < size; i += (topology == PrimitiveTopology::TriangleList ? 3 : 1))
+		{
+			// Vertices
+			Vector2 v0{ vertices_NDC[indices[i]].position.x,	 vertices_NDC[indices[i]].position.y };
+			Vector2 v1{};
+			Vector2 v2{};
+
+			// z positions
+			float z0 = vertices_NDC[indices[i]].position.z;
+			float z1{};
+			float z2{};
+
+			// w positions
+			float zw0 = vertices_NDC[indices[i]].position.w;
+			float zw1{};
+			float zw2{};
+
+			if (topology == PrimitiveTopology::TriangleStrip && i % 2 != 0) {
+				v1 = { vertices_NDC[indices[i + 2]].position.x, vertices_NDC[indices[i + 2]].position.y };
+				v2 = { vertices_NDC[indices[i + 1]].position.x, vertices_NDC[indices[i + 1]].position.y };
+
+				z1 = vertices_NDC[indices[i + 2]].position.z;
+				z2 = vertices_NDC[indices[i + 1]].position.z;
+
+				zw1 = vertices_NDC[indices[i + 2]].position.w;
+				zw2 = vertices_NDC[indices[i + 1]].position.w;
+			}
+			else {
+				v1 = { vertices_NDC[indices[i + 1]].position.x, vertices_NDC[indices[i + 1]].position.y };
+				v2 = { vertices_NDC[indices[i + 2]].position.x, vertices_NDC[indices[i + 2]].position.y };
+
+				z1 = vertices_NDC[indices[i + 1]].position.z;
+				z2 = vertices_NDC[indices[i + 2]].position.z;
+
+				zw1 = vertices_NDC[indices[i + 1]].position.w;
+				zw2 = vertices_NDC[indices[i + 2]].position.w;
+			}
+
+			// NDC Coordinates
+			Vector2 A{ ((v0.x + 1) / 2) * m_Width, ((1 - v0.y) / 2) * m_Height };
+			Vector2 B{ ((v1.x + 1) / 2) * m_Width, ((1 - v1.y) / 2) * m_Height };
+			Vector2 C{ ((v2.x + 1) / 2) * m_Width, ((1 - v2.y) / 2) * m_Height };
+
+			// Edges
+			Vector2 edge0 = B - A;
+			Vector2 edge1 = C - B;
+			Vector2 edge2 = A - C;
+
+			// Bounding box
+			int minX = std::max(0, static_cast<int>(std::floor(std::min({ A.x, B.x, C.x }))));
+			int minY = std::max(0, static_cast<int>(std::floor(std::min({ A.y, B.y, C.y }))));
+
+			int maxX = std::min(m_Width - 1, static_cast<int>(std::ceil(std::max({ A.x, B.x, C.x }))));
+			int maxY = std::min(m_Height - 1, static_cast<int>(std::ceil(std::max({ A.y, B.y, C.y }))));
+
+			if (m_DisplayBoundingBox)
+			{
+				Uint32 boundingColor = SDL_MapRGB(m_pBackBuffer->format, 100, 000, 000);
+				DrawBoundingBox(minX, minY, maxX, maxY, m_pBackBufferPixels, m_Width, m_Height, boundingColor);
+			}
+
+			for (int px{ minX }; px < maxX; ++px)
+			{
+				for (int py{ minY }; py < maxY; ++py)
+				{
+					ColorRGB finalColor{ colors::Black };
+					Vector2 P{ px + 0.5f, py + 0.5f };
+
+					// Direction from NDC to P(ixel Point)
+					Vector2 AP = P - A;
+					Vector2 BP = P - B;
+					Vector2 CP = P - C;
+
+					// Barycentric weights
+					float w0 = (Vector2::Cross(edge1, BP));
+					float w1 = (Vector2::Cross(edge2, CP));
+					float w2 = (Vector2::Cross(edge0, AP));
+
+					// Total Triangle Area 
+					float total = w0 + w1 + w2;
+
+					w0 /= total;
+					w1 /= total;
+					w2 /= total;
+
+					// Check if point is inside the triangle
+					if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+					{
+						// zBuffer
+						float zBufferValue = 1 / ((w0 / z0) +
+							(w1 / z1) +
+							(w2 / z2));
+
+						// Interpolated Depth -> using correct depth interpolation with w value
+						float interpolatedDepth = 1 / ((w0 / zw0) +
+							(w1 / zw1) +
+							(w2 / zw2));
+
+
+						int pixelIndex = py * m_Width + px;
+
+						// Depth check
+						if (zBufferValue > 0 && zBufferValue < 1) {
+							if (zBufferValue < m_pDepthBufferPixels[pixelIndex])
+							{
+								if (!m_DisplayDepthBuffer) {
+									// Texture
+									Vector2 textureColor{};
+									if (topology == PrimitiveTopology::TriangleStrip && i % 2 != 0) {
+										textureColor = (((vertices_NDC[indices[i]].uv / zw0) * w0) +
+											((vertices_NDC[indices[i + 2]].uv / zw1) * w1) +
+											((vertices_NDC[indices[i + 1]].uv / zw2) * w2)) * interpolatedDepth;
+									}
+									else {
+										textureColor = (((vertices_NDC[indices[i]].uv / zw0) * w0) +
+											((vertices_NDC[indices[i + 1]].uv / zw1) * w1) +
+											((vertices_NDC[indices[i + 2]].uv / zw2) * w2)) * interpolatedDepth;
+									}
+
+									finalColor += m_pTexture->Sample(textureColor);
+								}
+								else {
+									float depth = Remap(zBufferValue, 0.985f, 1.f, 0.f, 1.f);
+									ColorRGB remappedDepth{ depth, depth, depth };
+									finalColor += remappedDepth;
+								}
+
+								// Depth write
+								m_pDepthBufferPixels[pixelIndex] = zBufferValue;
+
+								//Update Color in Buffer
+								finalColor.MaxToOne();
+
+								m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+									static_cast<uint8_t>(finalColor.r * 255),
+									static_cast<uint8_t>(finalColor.g * 255),
+									static_cast<uint8_t>(finalColor.b * 255));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	float Renderer::Remap(float value, float low1, float high1, float low2, float high2) const {
+		return (value - low1) / (high1 - low1) * (high2 - low2) + low2;
 	}
 
 	void Renderer::RenderHardware() const
@@ -473,7 +656,7 @@ namespace dae {
 			color = ColorRGB{ .39f, .59f, .93f };
 		}
 		else {
-			color = ColorRGB{ 0.14f, 0.14f, 0.14f };
+			color = ColorRGB{ 0.1f, 0.1f, 0.1f };
 		}
 		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, &color.r);
 		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
@@ -507,8 +690,8 @@ namespace dae {
 		std::cout << "[Key Bindings - SHARED] \n";
 		std::cout << "   [F5]  Cycle Shading Mode (COMBINED/OBSERVED_AREA/DIFFUSE/SPECULAR)\n"; // TODO
 		std::cout << "   [F6]  Toggle NormalMap (ON/OFF)\n"; // TODO
-		std::cout << "   [F7]  Toggle DepthBuffer Visualization (ON/OFF)\n"; // TODO
-		std::cout << "   [F8]  Toggle BoundingBox Visualization (ON/OFF)\n"; // TODO
+		std::cout << "   [F7]  Toggle DepthBuffer Visualization (ON/OFF)\n";
+		std::cout << "   [F8]  Toggle BoundingBox Visualization (ON/OFF)\n";
 		std::cout << "\033[0m" << std::endl;
 	}
 }

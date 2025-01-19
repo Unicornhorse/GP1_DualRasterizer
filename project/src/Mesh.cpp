@@ -3,9 +3,11 @@
 
 Mesh::Mesh(ID3D11Device* pDevice, std::vector<uint32_t> indices, std::vector<Vertex_PosCol> vertices) :
 	m_pEffect{ new Effect( pDevice, L"resources/PosCol3D.fx" ) },
-	m_pTechnique{ m_pEffect->GetTechnique() }
+	m_pTechnique{ m_pEffect->GetTechnique() },
+	m_Indices{ indices },
+	m_Vertices{ vertices }
 {
-	CreateLayoutAndBuffers(pDevice, vertices, indices);
+	CreateLayoutAndBuffers(pDevice, m_Vertices, m_Indices);
 }
 
 Mesh::~Mesh()

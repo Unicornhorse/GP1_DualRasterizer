@@ -102,8 +102,6 @@ namespace dae
 			//2, 1, 3
 		};
 
-		std::vector<Vertex_Out> m_VerticesOut{};
-
 		float m_Rotationspeed{ 0.9f };
 		float m_Rotation{};
 
@@ -116,15 +114,21 @@ namespace dae
 		// render modes
 		void RenderSoftware() const;
 		void VertexTransformationFunction(Mesh* mesh) const;
+		void RenderSoftwareMesh(Mesh* mesh) const;
+		float Remap(float value, float low1, float high1, float low2, float high2) const;
 		void RenderHardware() const;
 
 		// Toggles and cycles
 		void PrintControls() const;
+		void DrawBoundingBox(int minX, int minY, int maxX, int maxY, uint32_t* framebuffer, int width, int height, uint32_t color) const;
 
 		bool m_Hardware{ true };
 		bool m_RotationEnabled{ true };
-		bool m_CullMode{ true };
-		bool m_UniformClearColor{ false };
+		bool m_UniformClearColor{ true };
+
 		bool m_FireFX{ false };
+
+		bool m_DisplayDepthBuffer{ false };
+		bool m_DisplayBoundingBox{ false };
 	};
 }
